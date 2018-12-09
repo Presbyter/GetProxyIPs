@@ -27,6 +27,8 @@ func GetIpFromSource() {
 			//log.Println(i, el.Text)
 		})
 		log.Println(m)
+
+		// todo save to db
 	})
 
 	c.OnHTML("div#listnav ul li a[href]", func(e *colly.HTMLElement) {

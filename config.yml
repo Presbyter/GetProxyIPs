@@ -1,1 +1,1 @@
-MongoConnStr: "mongodb://presbyter:xc315251241@10.0.0.200:27017/ip_poll"
+MongoConnStr: "mongodb://10.0.0.200:27017/ip_poll"
