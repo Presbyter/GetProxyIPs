@@ -5,13 +5,25 @@ import (
 	"log"
 )
 
+type MongoCfg struct {
+	Addrs     []string
+	Username  string
+	Password  string
+	Database  string
+	PoolLimit int
+}
+
 type config struct {
-	MongoConnStr string
+	Mongo MongoCfg
 }
 
 var (
 	cfg *config
 )
+
+func init() {
+	GetConfig()
+}
 
 func GetConfig() *config {
 	if cfg != nil {

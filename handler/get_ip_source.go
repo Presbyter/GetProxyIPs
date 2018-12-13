@@ -1,9 +1,13 @@
 package handler
 
 import (
-	"github.com/gocolly/colly"
+	"get_proxy_ips/repository"
+	"github.com/globalsign/mgo/bson"
 	"log"
+	"strconv"
 	"time"
+
+	"github.com/gocolly/colly"
 )
 
 func GetIpFromSource() {
@@ -28,7 +32,20 @@ func GetIpFromSource() {
 		})
 		log.Println(m)
 
+		port, _ := strconv.Atoi(m["port"])
+
 		// todo save to db
+		pool := repository.Pool{}
+		err := pool.Create(repository.Pool{
+			Id:       bson.NewObjectId(),
+			Ip:       m["ip"],
+			Port:     port,
+			Type:     m["type"],
+			Location: m["location"],
+		})
+		if err != nil {
+			log.Printf("error | save to db fail. error: %v", err.Error())
+		}
 	})
 
 	c.OnHTML("div#listnav ul li a[href]", func(e *colly.HTMLElement) {

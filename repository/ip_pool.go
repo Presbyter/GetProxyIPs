@@ -23,7 +23,7 @@ func (p *Pool) Create(entity Pool) (err error) {
 	defer s.Close()
 
 	c := s.DB("ip_pool").C("pool")
-	count, err := c.Find(bson.M{"ip": entity.Ip, "port": entity}).Count()
+	count, err := c.Find(bson.M{"ip": entity.Ip, "port": entity.Port}).Count()
 	if err != nil {
 		log.Printf("mgo find pool fail. error: %v", err.Error())
 		return

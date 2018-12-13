@@ -1,1 +1,7 @@
-MongoConnStr: "mongodb://10.0.0.200:27017/ip_poll"
+Mongo:
+  Addrs:
+    - 127.0.0.1:27017
+  Username: root
+  Password: 315215241
+  Database: ip_pool
+  PoolLimit: 4096
