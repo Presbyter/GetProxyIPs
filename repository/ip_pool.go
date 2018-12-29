@@ -5,6 +5,7 @@ import (
 	"get_proxy_ips/common"
 	"github.com/globalsign/mgo/bson"
 	"log"
+	"time"
 )
 
 type Pool struct {
@@ -18,14 +19,14 @@ type Pool struct {
 }
 
 func (p *Pool) Create(entity Pool) (err error) {
-	// 验证是否已经存在
 	s := common.GetAppBus().MongoDbSession.Copy()
 	defer s.Close()
 
 	c := s.DB("ip_pool").C("pool")
+	// 验证是否已经存在
 	count, err := c.Find(bson.M{"ip": entity.Ip, "port": entity.Port}).Count()
 	if err != nil {
-		log.Printf("mgo find pool fail. error: %v", err.Error())
+		log.Printf("error | mgo find pool fail. error: %v", err.Error())
 		return
 	}
 
@@ -36,10 +37,47 @@ func (p *Pool) Create(entity Pool) (err error) {
 
 	err = c.Insert(&entity)
 	if err != nil {
-		log.Printf("mgo insert pool fail. error: %v", err.Error())
+		log.Printf("error | mgo insert pool fail. error: %v", err.Error())
 		return
 	}
 
 	log.Println("mgo insert pool success.")
+	return
+}
+
+func (p *Pool) GetByPage(pageIndex, pageSize int) (list []Pool, err error) {
+	s := common.GetAppBus().MongoDbSession.Copy()
+	defer s.Close()
+
+	c := s.DB("ip_pool").C("pool")
+	err = c.Find(nil).Sort("_id").Skip(pageSize * (pageIndex - 1)).Limit(pageSize).All(&list)
+	if err != nil {
+		log.Printf("error | mgo find pool fail. error: %v", err.Error())
+		return
+	}
+	return
+}
+
+func (p *Pool) GetTotalCount() (count int, err error) {
+	s := common.GetAppBus().MongoDbSession.Copy()
+	defer s.Close()
+
+	c := s.DB("ip_pool").C("pool")
+	count, err = c.Count()
+	if err != nil {
+		log.Printf("error | get pool count fail. error: %v", err.Error())
+	}
+	return
+}
+
+func (p *Pool) Modify() (err error) {
+	s := common.GetAppBus().MongoDbSession.Copy()
+	defer s.Close()
+
+	c := s.DB("ip_pool").C("pool")
+	err = c.UpdateId(p.Id, bson.M{"$set": bson.M{"last_try_time": time.Now().Unix(), "status": p.Status}})
+	if err != nil {
+		log.Printf("error | mgo modify pool fail. error: %v", err.Error())
+	}
 	return
 }

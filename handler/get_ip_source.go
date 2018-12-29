@@ -1,10 +1,17 @@
 package handler
 
 import (
+	"context"
+	"crypto/tls"
+	"fmt"
 	"get_proxy_ips/repository"
 	"github.com/globalsign/mgo/bson"
 	"log"
+	"math"
+	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gocolly/colly"
@@ -60,4 +67,92 @@ func GetIpFromSource() {
 
 	c.Visit("https://www.kuaidaili.com/free/inha/1/")
 	return
+}
+
+func CleanIps(ctx context.Context) {
+	pool := repository.Pool{}
+
+	ticker := time.NewTicker(10 * time.Second)
+
+	ch := make(chan repository.Pool)
+	limitCh := make(chan bool, 10)
+
+	go func() {
+		index := 0
+		for item := range ch {
+			limitCh <- true
+			index++
+			log.Println(index)
+			go TestIpByBaidu(limitCh, item)
+		}
+	}()
+
+	for {
+		pageIndex, pageSize := 1, 500
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			go func() {
+				count, err := pool.GetTotalCount()
+				if err != nil {
+					return
+				}
+
+				for i := 0; i < int(math.Ceil(float64(count)/float64(pageSize))); i++ {
+					list, err := pool.GetByPage(pageIndex+i, pageSize)
+					if err != nil {
+						continue
+					}
+
+					for _, v := range list {
+						ch <- v
+					}
+				}
+			}()
+		}
+		ticker = time.NewTicker(4 * time.Hour)
+	}
+}
+
+func TestIpByBaidu(limit chan bool, p repository.Pool) {
+	defer func() { <-limit }()
+	var uri string
+	switch strings.ToLower(p.Type) {
+	case "http":
+		uri = fmt.Sprintf("http://%v:%v", strings.Trim(p.Ip, " "), p.Port)
+	default:
+		uri = fmt.Sprintf("http://%v:%v", strings.Trim(p.Ip, " "), p.Port)
+	}
+	log.Println(uri)
+	proxyUrl, err := url.Parse(uri)
+	if err != nil {
+		log.Printf("error | the uri is bad. error: %v", err.Error())
+		return
+	}
+
+	client := http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			Proxy:           http.ProxyURL(proxyUrl),
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	res, err := client.Get("https://www.baidu.com")
+	if err != nil {
+		log.Printf("error | test by baidu fail. error: %v", err.Error())
+		p.Status = 0
+		p.Modify()
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		p.Status = 0
+		p.Modify()
+	} else {
+		p.Status = 1
+		p.Modify()
+	}
 }
